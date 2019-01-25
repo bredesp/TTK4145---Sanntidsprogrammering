@@ -8,12 +8,12 @@ start() ->
     Ns = spawn(fun() -> number_server(17) end),
     spawn(fun() -> increment(Ns, 1000000) end),
     spawn(fun() -> decrement(Ns, 1000017) end),
-    
+
     timer:sleep(2000),
 
     Ns ! {get_number, self()},
     receive
-	Num -> 
+	Num ->
 	    io:format("Number is: ~B", [Num])
     end,
     Ns ! exit.
@@ -48,4 +48,3 @@ number_server(Number) ->
 	exit ->
 	    ok
     end.
-
