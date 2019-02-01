@@ -48,7 +48,7 @@ func main() {
 		ServerConn, err := net.ListenUDP("udp", ServerAddr)
 	*/
 
-	ServerConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: []byte{0, 0, 0, 0}, Port: 30000, Zone: ""})
+	ServerConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: []byte{0, 0, 0, 0}, Port: 20008, Zone: ""})
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
