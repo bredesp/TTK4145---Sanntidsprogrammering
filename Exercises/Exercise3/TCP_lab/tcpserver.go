@@ -8,13 +8,12 @@ import (
 func main() {
 	// listen to incoming tcp connections
 	// serverAdress, err := ResolveTCPAddr("tcp", "10.100.23.242:34933")
-	l, err := net.Dial("tcp", "10.100.23.242:39970")
+	l, err := net.Dial("tcp", "10.22.228.184:30000")
 	if err != nil {
 		fmt.Println("Feil ved listen")
 	}
 	fmt.Println("Kom foran defer")
 	//defer l.Close()
-
 
 	// A common pattern is to start a loop to continously accept connections
 	for {
