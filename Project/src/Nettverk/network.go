@@ -1,11 +1,13 @@
 package Nettverk
 
 import (
+	// "handler"
 	. "fmt"
 	. "strconv"
 	. "strings"
 	"net"
-	"os"
+	"time"
+	// "os"
 )
 
 var ch_send_stopped = make(chan int)

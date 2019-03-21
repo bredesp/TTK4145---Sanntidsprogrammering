@@ -3,8 +3,8 @@ package FSM
 import (
 	"fmt"
 	"time"
-
-	"github.com/bredesp/TTK4145---Sanntidsprogrammering/blob/master/Project/driver-go-master/elevio/elevator_io.go"
+	//"handler"
+	"elevio"
 )
 
 type STATE int
@@ -48,7 +48,7 @@ func FSM() {
 		case IDLE: {
 			elevDir = 0
 			elevFloor = getFloor()
-			for floor := 0; floor < N_FLOORS; floor ++ {
+			for floor := 0; floor < _numFloors; floor ++ {
 				if internalOrders(floor) || externalOrders(floor){
 					if floor < elevFloor {
 						moveDown()
@@ -69,7 +69,7 @@ func FSM() {
 		case MOVING: {
 			elevFloor = getFloor()
 			SetFloorIndicator(elevFloor)
-			if floor != -1 && floor < N_FLOOR {
+			if floor != -1 && floor < _numFloors {
 
 			}
 			if internalOrders(elevFloor) || externalOrders(elevFloor){
@@ -91,7 +91,7 @@ func FSM() {
 			}
 			else if elevDir = 1 {
 				ordersAbove := 0
-				for floor := elevFloor; floor < N_FLOORS; floor ++ {
+				for floor := elevFloor; floor < _numFloors; floor ++ {
 					if internalOrders(floor) || externalOrders(floor){
 						ordersAbove += 1
 					}
@@ -114,7 +114,7 @@ func FSM() {
 				state = MOVING
 			}
 			if elevDir = -1 {
-				for floor := 0; floor < N_FLOORS; floor -- {
+				for floor := 0; floor < _numFloors; floor -- {
 					if internalOrders(floor) || externalOrders(floor){
 						if floor < elevFloor {
 							moveDown()
@@ -129,7 +129,7 @@ func FSM() {
 				state = IDLE
 			}
 			if elevDir = 1 {
-				for floor := N_FLOORS - 1; floor > -1; floor -- {
+				for floor := _numFloors - 1; floor > -1; floor -- {
 					if internalOrders(floor) || externalOrders(floor){
 						if floor < elevFloor {
 							moveDown()

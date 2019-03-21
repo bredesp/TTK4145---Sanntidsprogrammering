@@ -1,10 +1,10 @@
 package handler
 
 import (
-	. "elevator_io"
-	. "network"
-	. "time"
-	. "fmt"
+	"elevio"
+	//"Nettverk"
+	"time"
+	//. "fmt"
 )
 
 var internalOrders [4]bool //Bolsk vektor str 4
@@ -51,7 +51,7 @@ func ExternalOrders(floor int) bool {
 
 func ReadButtons() {
 	for {
-		for floor := 0; floor < N_FLOORS; floor++ {
+		for floor := 0; floor < _numFloors; floor++ {
 			internalButton := getButton(BT_Cab, floor)
 			if internalButton && !prevInternalButton[floor] {
 				internalButtonCh <- floor
@@ -60,10 +60,10 @@ func ReadButtons() {
 			}
 			prevInternalButton[floor] = internalButton
 			for upDown := 0; upDown < 2; upDown++ {
-				if floor == N_FLOORS-1 && upDown == 0 {
+				if floor == _numFloors-1 && upDown == 0 {
 					continue
 				}
-				if floor == 0 && upDown == 1 { /
+				if floor == 0 && upDown == 1 {
 					continue
 				}
 				externalButton := getButton(int2Button(upDown), floor)
@@ -83,7 +83,7 @@ func watchDog() {
 	for {
 		timer := NewTimer(5 * Second)
 		<-timer.C
-		for floor := 0; floor < N_FLOORS; floor++ {
+		for floor := 0; floor < _numFloors; floor++ {
 			if !internalButtons[floor].IsZero() && Now().Sub(internalButtons[floor]).Seconds() > MaxWaitTime {
 				internalButtonCh <- floor
 			}
@@ -126,7 +126,7 @@ func AddOrders() {
 		case button := <-RecieveButtonCh:
 			floor := button[0]
 			buttonType := button[1]
-			if !(floor == N_FLOORS-1 && buttonType == 0) && !(floor == 0 && buttonType == 1) {
+			if !(floor == _numFloors-1 && buttonType == 0) && !(floor == 0 && buttonType == 1) {
 				SetButtonLamp(int2Button(buttonType), floor, true)
 			}
 			if internalOrders[floor] {
@@ -159,7 +159,7 @@ func RemoveOrders() {
 				externalButtons[floor][upDown] = Time{}
 			}
 			for upDown := 0; upDown < 3; upDown++ {
-				if floor == N_FLOORS-1 && upDown == 0 {
+				if floor == _numFloors-1 && upDown == 0 {
 					continue
 				}
 				if floor == 0 && upDown == 1 {
@@ -172,7 +172,7 @@ func RemoveOrders() {
 			externalOrders[floor] = false
 			for upDown := 0; upDown < 2; upDown++ {
 				externalButtons[floor][upDown] = Time{}
-				if floor == N_FLOORS-1 && upDown == 0 {
+				if floor == _numFloors-1 && upDown == 0 {
 					continue
 				}
 				if floor == 0 && upDown == 1 {
