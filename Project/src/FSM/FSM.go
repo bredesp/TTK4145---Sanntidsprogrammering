@@ -18,26 +18,22 @@ const (
 // elevator directon
 var elevDir int
 
-// function returns the floor the elevator is at
-func getElevFloor() int{
-    return getFloor()
-}
 
 // move the elevator up
 func moveUp() {
-    setMotorDircetion(MD_up)
+    setMotorDircetion(MD_Up)
     elevDir = 1
 }
 
 // move the elevator down
 func moveDown() {
-    setMotorDirection(MD_down)
+    setMotorDirection(MD_Down)
     elevDir =  -1
 }
 
 // stop the elevator
 func stopElev() {
-    setMotorDirection
+    setMotorDirection(MD_Stop)
 }
 
 //
@@ -51,7 +47,7 @@ func FSM() {
 
 		case IDLE: {
 			elevDir = 0
-			elevFloor = getElevFloor()
+			elevFloor = getFloor()
 			for floor := 0; floor < N_FLOORS; floor ++ {
 				if internalOrders(floor) || externalOrders(floor){
 					if floor < elevFloor {
@@ -71,8 +67,8 @@ func FSM() {
 
 		}
 		case MOVING: {
-			elevFloor = getElevFloor()
-			ElevSetFloorIndicator(elevFloor)
+			elevFloor = getFloor()
+			SetFloorIndicator(elevFloor)
 			if floor != -1 && floor < N_FLOOR {
 
 			}
@@ -108,11 +104,11 @@ func FSM() {
 			}
 		}
 		case DOOROPEN: {
-			elevFloor = getElevFloor()
-			ElevSetDoorOpenLamp(true)
+			elevFloor = getFloor()
+			DoorOpenLamp(true)
 			// Timer
 			doorTimer := time.NewTimer(3 * time.Second)
-			The <-timer1.C
+			<-doorTimer.C
 			fmt.Println("doorTimer expired")
 			if elevDir = -1	{
 				state = MOVING
