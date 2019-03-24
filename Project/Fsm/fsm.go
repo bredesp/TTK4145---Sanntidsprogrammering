@@ -20,6 +20,8 @@ import (
 var FLOORS int
 var ID string
 var PORT string
+var updateMessage backup.UpdateMessage
+var elevState cost.AssignedOrderInformation
 
 //TODO: test motor failure. worries: behaviour=stop is not enough and elevator must disconnect from network
 //TODO: clean up the motor failure part, not sure what needs to stay or not :)
@@ -38,8 +40,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 	}()
 
 	//----initializing variables and subroutines ----//
-	var updateMessage backup.UpdateMessage
-	var elevState cost.AssignedOrderInformation
+	//var elevState cost.AssignedOrderInformation
 
 	updateMessage.Elevator = ID
 	elevState = <-ch_fsm_info //this variable contains all information the FSM needs to operate and is constantly refreshed
@@ -57,6 +58,8 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 	//go elevio.PollFloorSensorCont(ch_in_floor)
 
 	//----initializing elevator----//
+	initElevatorState(init, ch_new_floor)
+	/*
 	if init { //clean init
 		elevio.SetMotorDirection(elevio.MD_Down)
 		elevio.SetFloorIndicator(0)
@@ -90,6 +93,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 			}
 		}
 	}
+	*/
 
 	//Main loop in Fsm
 	for {
@@ -115,6 +119,8 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 						doorTimedOut.Reset(3 * time.Second)
 
 						//Behaviour message
+						//updateBehaviour("doorOpen", ch_network_update)
+
 						updateMessage.MessageType = 1
 						updateMessage.Behaviour = "doorOpen"
 						updateMessage.Elevator = ID
@@ -128,50 +134,66 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 					motorTimedOut.Reset(4 * time.Second)
 
 					//Direction Message
+					//updateDirection("up", ch_network_update)
+
 					updateMessage.MessageType = 3
 					updateMessage.Direction = "up"
 					updateMessage.Elevator = ID
 					ch_network_update <- updateMessage
 
 					//Behaviour message
+					//updateBehaviour("moving", ch_network_update)
+
 					updateMessage.MessageType = 1
 					updateMessage.Behaviour = "moving"
 					updateMessage.Elevator = ID
 					ch_network_update <- updateMessage
+
 				case elevio.MD_Down:
 					elevio.SetMotorDirection(newDirection)
 					motorTimedOut.Reset(4 * time.Second)
 
 					//Direction Message
+					//updateDirection("down", ch_network_update)
+
 					updateMessage.MessageType = 3
 					updateMessage.Direction = "down"
 					updateMessage.Elevator = ID
 					ch_network_update <- updateMessage
 
 					//Behaviour message
+					//updateBehaviour("moving", ch_network_update)
+
 					updateMessage.MessageType = 1
 					updateMessage.Behaviour = "moving"
 					updateMessage.Elevator = ID
 					ch_network_update <- updateMessage
+
 				}
 			case "moving":
 			}
 		case buttonEvent := <-ch_button_press: //button press occurs, simply forward this to the network module
 			/*------------Making update message ------------*/
 			if buttonEvent.Button < 2 { // If hall request
+				//updateRequest(0, int(buttonEvent.Button), buttonEvent.Floor, elevState.States[ID].Behaviour, /*ch_network_update*/)
+
 				updateMessage.MessageType = 0
 				updateMessage.Button = int(buttonEvent.Button)
 				updateMessage.OrderCompleted = false //Nytt knappetrykk
 				updateMessage.Elevator = ID
 				updateMessage.Behaviour = elevState.States[ID].Behaviour
 				updateMessage.Floor = buttonEvent.Floor
+
 			} else {
+				//updateRequest(4, int(buttonEvent.Button), buttonEvent.Floor, elevState.States[ID].Behaviour, /*ch_network_update*/)
+
 				updateMessage.MessageType = 4 //Cab request
-				updateMessage.Floor = buttonEvent.Floor
 				updateMessage.Button = int(buttonEvent.Button)
-				updateMessage.Behaviour = elevState.States[ID].Behaviour
 				updateMessage.OrderCompleted = false //Nytt knappetrykk
 				updateMessage.Elevator = ID
+				updateMessage.Behaviour = elevState.States[ID].Behaviour
+				updateMessage.Floor = buttonEvent.Floor
+
 			}
 			ch_network_update <- updateMessage
 		case floor := <-ch_new_floor: //We arrive at new floor, check if we should stop and clear orders
@@ -191,6 +213,8 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 				doorTimedOut.Reset(3 * time.Second)
 
 				//Behaviour message
+				//updateBehaviour("doorOpen", ch_network_update)
+
 				updateMessage.MessageType = 1
 				updateMessage.Behaviour = "doorOpen"
 				updateMessage.Elevator = ID
@@ -206,6 +230,8 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 			switch newDirection {
 			case elevio.MD_Stop:
 				//Behaviour message
+				//updateBehaviour("idle", ch_network_update)
+
 				updateMessage.MessageType = 1
 				updateMessage.Behaviour = "idle"
 				updateMessage.Elevator = ID
@@ -215,12 +241,16 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 				elevio.SetMotorDirection(newDirection)
 				motorTimedOut.Reset(4 * time.Second)
 				//Direction Message
+				//updateDirection("up", ch_network_update)
+
 				updateMessage.MessageType = 3
 				updateMessage.Direction = "up"
 				updateMessage.Elevator = ID
 				ch_network_update <- updateMessage
 
 				//Behaviour message
+				//updateBehaviour("moving", ch_network_update)
+
 				updateMessage.MessageType = 1
 				updateMessage.Behaviour = "moving"
 				updateMessage.Elevator = ID
@@ -230,12 +260,16 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 				elevio.SetMotorDirection(newDirection)
 				motorTimedOut.Reset(4 * time.Second)
 				//Direction Message
+				//updateDirection("down", ch_network_update)
+
 				updateMessage.MessageType = 3
 				updateMessage.Direction = "down"
 				updateMessage.Elevator = ID
 				ch_network_update <- updateMessage
 
 				//Behaviour message
+				//updateBehaviour("moving", ch_network_update)
+
 				updateMessage.MessageType = 1
 				updateMessage.Behaviour = "moving"
 				updateMessage.Elevator = ID
@@ -265,6 +299,72 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 			}
 		}
 	}
+}
+
+//Erlend: lager init function if init==true
+func initElevatorState(init bool, ch_new_floor <-chan int){
+	initTimedOut := time.NewTimer(3 * time.Second)
+	initTimedOut.Stop()
+	if init { //clean init
+		elevio.SetMotorDirection(elevio.MD_Down)
+		elevio.SetFloorIndicator(0)
+		elevio.SetDoorOpenLamp(false)
+		turnOffAllLights()
+		updateMessage.Floor = 0
+		updateMessage.Behaviour = "idle"
+		updateMessage.Direction = "up"
+	M: //label loop in order to break the for loop
+		for {
+			select {
+			case floor := <-ch_new_floor:
+				if floor == 0 {
+					elevio.SetMotorDirection(elevio.MD_Stop)
+					break M
+				}
+			}
+		}
+	} else { //recovering from initialized system
+		updateMessage.Floor = elevState.States[ID].Floor
+		updateMessage.Behaviour = elevState.States[ID].Behaviour
+		updateMessage.Direction = elevState.States[ID].Direction
+		if elevState.States[ID].Behaviour == "doorOpen" {
+			initTimedOut.Reset(3 * time.Second)
+		}
+		if elevState.States[ID].Behaviour == "moving" {
+			if elevState.States[ID].Direction == "up" {
+				elevio.SetMotorDirection(elevio.MD_Up)
+			} else {
+				elevio.SetMotorDirection(elevio.MD_Down)
+			}
+		}
+	}
+}
+
+// SIMON: Ny funksjon. Tatt den i bruk over
+func updateRequest(msgType int, buttonType int, buttonFloor int, behaviour_string string/*, ch_network_update chan<- backup.UpdateMessage*/) {
+	updateMessage.MessageType = msgType
+	updateMessage.Button = buttonType
+	updateMessage.OrderCompleted = false //Nytt knappetrykk
+	updateMessage.Elevator = ID
+	updateMessage.Behaviour = behaviour_string
+	updateMessage.Floor = buttonFloor
+	//ch_network_update <- updateMessage
+}
+
+// SIMON: Ny funksjon. Tatt den i bruk over
+func updateBehaviour(behaviour_string string, ch_network_update chan<- backup.UpdateMessage) {
+	updateMessage.MessageType = 1
+	updateMessage.Behaviour = behaviour_string
+	updateMessage.Elevator = ID
+	ch_network_update <- updateMessage
+}
+
+// SIMON: Ny funksjon. Tatt den i bruk over
+func updateDirection(direction_string string, ch_network_update chan<- backup.UpdateMessage) {
+	updateMessage.MessageType = 3
+	updateMessage.Behaviour = direction_string
+	updateMessage.Elevator = ID
+	ch_network_update <- updateMessage
 }
 
 //Checks for any orders above current floor

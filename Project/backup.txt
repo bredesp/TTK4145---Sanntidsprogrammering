@@ -1,0 +1,1 @@
+{"hallRequests":[[false,false],[false,false],[false,false],[false,false]],"states":{"peer-10.100.23.229-27160":{"behaviour":"idle","floor":0,"direction":"down","cabRequests":[false,false,false,false]}}}
