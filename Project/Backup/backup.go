@@ -10,40 +10,21 @@ var FLOORS int
 var ELEVATORS int
 var Mtx sync.Mutex = sync.Mutex{}
 
-/*
-JSON format for saving the status
-{
-    "hallRequests" :
-        [[Boolean, Boolean], ...],
-    "states" :
-        {
-            "id_1" : {
-                "behaviour"     : < "idle" | "moving" | "doorOpen" >
-                "floor"         : NonNegativeInteger
-                "direction"     : < "up" | "down" | "stop" >
-                "cabRequests"   : [Boolean, ...]
-            },
-            "id_2" : {...}
-        }
-}
-*/
-
 type UpdateMessage struct {
-	//encoding of relevant update information
 	MessageType int
-	// 0 = hallRequest
-	// 1 = newBehaviour
-	// 2 = arrivedAtfloor
-	// 3 = newDirection
-	// 4 = cabRequest
-	// 5 = deleteElevator
-	// 8 = motorBroken
-	Elevator    	string //used in all other than 0
-	Floor       	int    //used in 0, 2, 4
-	Button      	int    //used in 0, 4
-	Behaviour   	string //used in 1
-	Direction   	string //used in 3
-	OrderCompleted 	bool   //used in 0, 4, 6 - true if the elevator has completed an order and wants to clear it
+	// 0 = hall request
+	// 1 = new behaviour
+	// 2 = arrived at floor
+	// 3 = new direction
+	// 4 = cab request
+	// 5 = delete elevator
+	// 9 = motorBroken
+	Elevator    	string
+	Floor       	int
+	Button      	int
+	Behaviour   	string
+	Direction   	string
+	OrderCompleted 	bool
 }
 
 type StateValues struct {
@@ -58,7 +39,8 @@ type StatusStruct struct {
 	States       map[string]*StateValues `json:"states"` //key kan be changed to int if more practical but remember to cast to string before JSON encoding!
 }
 
-func Backup(ch_elevator_status chan<- StatusStruct, ch_status_broadcast chan<- StatusStruct, ch_status_refresh <-chan StatusStruct, ch_status_update <-chan UpdateMessage, init bool, id string) {
+
+func Backup(ch_status_broadcast chan<- StatusStruct, ch_status_update <-chan UpdateMessage, ch_elevator_status chan<- StatusStruct, ch_status_refresh <-chan StatusStruct, init bool, id string) {
 
 	file, err := os.OpenFile("backup.txt", os.O_RDWR|os.O_CREATE, 0671)
 	ifError(err)
@@ -136,28 +118,28 @@ func Backup(ch_elevator_status chan<- StatusStruct, ch_status_broadcast chan<- S
 // Used to update the states and MessageType
 func updateStates(systemInfo *StatusStruct, message UpdateMessage, id string){
 	switch message.MessageType{
-		case 0: //hall request
+		case 0: //cab request
+			if message.OrderCompleted {
+				systemInfo.States[message.Elevator].CabRequests[message.Floor] = false
+			} else {
+				systemInfo.States[message.Elevator].CabRequests[message.Floor] = true
+			}
+		case 1: //hall request
 			if message.OrderCompleted {
 			systemInfo.HallRequests[message.Floor][message.Button] = false
 			}else{
 			systemInfo.HallRequests[message.Floor][message.Button] = true
 			}
 
-		case 1: //new Behaviour
+		case 2: //new Behaviour
 			systemInfo.States[message.Elevator].Behaviour = message.Behaviour
-
-		case 2: //arrived at floor
-			systemInfo.States[message.Elevator].Floor = message.Floor
 
 		case 3: //new direction
 			systemInfo.States[message.Elevator].Direction = message.Direction
 
-		case 4: //cab request
-			if message.OrderCompleted {
-				systemInfo.States[message.Elevator].CabRequests[message.Floor] = false
-			} else {
-				systemInfo.States[message.Elevator].CabRequests[message.Floor] = true
-			}
+		case 4: //arrived at floor
+			systemInfo.States[message.Elevator].Floor = message.Floor
+
 		case 5: //lost Elevator
 			if message.Elevator != id { //dont delete ourselves
 				delete(systemInfo.States, message.Elevator)

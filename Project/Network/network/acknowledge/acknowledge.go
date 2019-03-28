@@ -166,9 +166,9 @@ func Ack(ch_new_update chan<- backup.UpdateMessage, ch_new_status chan<- backup.
 			_mtx.Lock()
 			_, exists := sentMessages.NotAckFromPeer[receivedAck.SequenceNum]
 			if exists {
-				index := stringInSlice(receivedAck.ID, sentMessages.NotAckFromPeer[receivedAck.SequenceNum])
+				index := findString(receivedAck.ID, sentMessages.NotAckFromPeer[receivedAck.SequenceNum])
 				if index != -1 {
-					sentMessages.NotAckFromPeer[receivedAck.SequenceNum] = removeFromSlice(sentMessages.NotAckFromPeer[receivedAck.SequenceNum], index)
+					sentMessages.NotAckFromPeer[receivedAck.SequenceNum] = removeString(sentMessages.NotAckFromPeer[receivedAck.SequenceNum], index)
 					if len(sentMessages.NotAckFromPeer[receivedAck.SequenceNum]) == 0 {
 						delete(sentMessages.NotAckFromPeer, receivedAck.SequenceNum)
 						delete(sentMessages.NumbTimesSent, receivedAck.SequenceNum)
@@ -191,9 +191,9 @@ func Ack(ch_new_update chan<- backup.UpdateMessage, ch_new_status chan<- backup.
 			peerlist = newPeerList
 			if peerlist.Lost != "" {
 				for seqNumb, peers := range sentMessages.NotAckFromPeer {
-					index := stringInSlice(peerlist.Lost, peers)
+					index := findString(peerlist.Lost, peers)
 					if index != -1 {
-						sentMessages.NotAckFromPeer[seqNumb] = removeFromSlice(sentMessages.NotAckFromPeer[seqNumb], index)
+						sentMessages.NotAckFromPeer[seqNumb] = removeString(sentMessages.NotAckFromPeer[seqNumb], index)
 					}
 				}
 			}
@@ -269,7 +269,7 @@ func AcknowledgeTimeout(ch_timeout_ack chan<- AcknowledgeMessage, ackStruct Ackn
 }
 
 //Looks for a string in an array and returns the index.
-func stringInSlice(a string, list []string) int {
+func findString(a string, list []string) int {
 	for ind, b := range list {
 		if b == a {
 			return ind
@@ -279,7 +279,7 @@ func stringInSlice(a string, list []string) int {
 }
 
 //Removes a string from an array, does not care about sorting.
-func removeFromSlice(s []string, i int) []string {
+func removeString(s []string, i int) []string {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
 	return s[:len(s)-1]
 }

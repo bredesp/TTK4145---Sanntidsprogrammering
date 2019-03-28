@@ -1,8 +1,8 @@
-package fsm
+package stateMachine
 
 //This package implements the basic operation of the elevator and builds on the elevator driver.
 //The module does not retain any information (other than the name) about the state of the elevator,
-//but expects the information recived from the cost module through the channel ch_fsm_info to be current.
+//but expects the information recived from the cost module through the channel ch_stateMachine_info to be current.
 //This information includes the elevators current state and the orders that have been assigned to it,
 //all logic that is needed to execute these orders is contained within this module.
 //All updates that occur to the elevator are transmitted to the network module and are further processed there.
@@ -26,7 +26,7 @@ var PORT string
 //TODO: test motor failure. worries: behaviour=stop is not enough and elevator must disconnect from network
 //TODO: clean up the motor failure part, not sure what needs to stay or not :)
 
-func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.AssignedOrderInformation, init bool) {
+func StateMachine(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.AssignedOrderInformation, init bool) {
 	//Handling unexpected panic errors. Spawns a new process and initializing from a saved state.
 	defer func() {
 		if r := recover(); r != nil {
@@ -120,7 +120,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 						//Behaviour message
 						//updateBehaviour("doorOpen", ch_network_update)
 
-						updateMessage.MessageType = 1
+						updateMessage.MessageType = 4
 						updateMessage.Behaviour = "doorOpen"
 						updateMessage.Elevator = ID
 						ch_network_update <- updateMessage
@@ -143,7 +143,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 					//Behaviour message
 					//updateBehaviour("moving", ch_network_update)
 
-					updateMessage.MessageType = 1
+					updateMessage.MessageType = 2
 					updateMessage.Behaviour = "moving"
 					updateMessage.Elevator = ID
 					ch_network_update <- updateMessage
@@ -163,7 +163,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 					//Behaviour message
 					//updateBehaviour("moving", ch_network_update)
 
-					updateMessage.MessageType = 1
+					updateMessage.MessageType = 2
 					updateMessage.Behaviour = "moving"
 					updateMessage.Elevator = ID
 					ch_network_update <- updateMessage
@@ -176,7 +176,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 			if buttonEvent.Button < 2 { // If hall request
 				//updateRequest(0, int(buttonEvent.Button), buttonEvent.Floor, elevState.States[ID].Behaviour, /*ch_network_update*/)
 
-				updateMessage.MessageType = 0
+				updateMessage.MessageType = 1
 				updateMessage.Button = int(buttonEvent.Button)
 				updateMessage.OrderCompleted = false //Nytt knappetrykk
 				updateMessage.Elevator = ID
@@ -186,7 +186,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 			} else {
 				//updateRequest(4, int(buttonEvent.Button), buttonEvent.Floor, elevState.States[ID].Behaviour, /*ch_network_update*/)
 
-				updateMessage.MessageType = 4 //Cab request
+				updateMessage.MessageType = 0 //Cab request
 				updateMessage.Button = int(buttonEvent.Button)
 				updateMessage.OrderCompleted = false //Nytt knappetrykk
 				updateMessage.Elevator = ID
@@ -197,7 +197,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 			ch_network_update <- updateMessage
 		case floor := <-ch_new_floor: //We arrive at new floor, check if we should stop and clear orders
 			/*--------------Message to send--------------------*/
-			updateMessage.MessageType = 2 //Arrived at floor
+			updateMessage.MessageType = 4 //Arrived at floor
 			updateMessage.Floor = floor
 			updateMessage.Behaviour = elevState.States[ID].Behaviour
 			updateMessage.Elevator = ID
@@ -214,7 +214,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 				//Behaviour message
 				//updateBehaviour("doorOpen", ch_network_update)
 
-				updateMessage.MessageType = 1
+				updateMessage.MessageType = 2
 				updateMessage.Behaviour = "doorOpen"
 				updateMessage.Elevator = ID
 				ch_network_update <- updateMessage
@@ -231,7 +231,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 				//Behaviour message
 				//updateBehaviour("idle", ch_network_update)
 
-				updateMessage.MessageType = 1
+				updateMessage.MessageType = 3
 				updateMessage.Behaviour = "idle"
 				updateMessage.Elevator = ID
 				ch_network_update <- updateMessage
@@ -250,7 +250,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 				//Behaviour message
 				//updateBehaviour("moving", ch_network_update)
 
-				updateMessage.MessageType = 1
+				updateMessage.MessageType = 2
 				updateMessage.Behaviour = "moving"
 				updateMessage.Elevator = ID
 				ch_network_update <- updateMessage
@@ -269,7 +269,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 				//Behaviour message
 				//updateBehaviour("moving", ch_network_update)
 
-				updateMessage.MessageType = 1
+				updateMessage.MessageType = 2
 				updateMessage.Behaviour = "moving"
 				updateMessage.Elevator = ID
 				ch_network_update <- updateMessage
@@ -279,7 +279,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 			//all other operation is interrupted (this needs not be the case)
 			//currInfo := <-ch_fsm_info
 			//lastFloor := currInfo.States[ID].Floor
-			updateMessage.MessageType = 8
+			updateMessage.MessageType = 9
 			updateMessage.Elevator = ID
 			fmt.Println("motor broke")
 			ch_network_update <- updateMessage
@@ -378,7 +378,7 @@ func updateDirection(direction_string string, ch_network_update chan<- backup.Up
 */
 
 //Checks for any orders above current floor
-func requestsAbove(elevState cost.AssignedOrderInformation, ID string, reachedFloor int) bool {
+func ordersAbove(elevState cost.AssignedOrderInformation, ID string, reachedFloor int) bool {
 	for floor := reachedFloor + 1; floor < FLOORS; floor++ {
 		if elevState.States[ID].CabRequests[floor] {
 			return true
@@ -393,7 +393,7 @@ func requestsAbove(elevState cost.AssignedOrderInformation, ID string, reachedFl
 }
 
 //Checks any orders below current floor
-func requestsBelow(elevState cost.AssignedOrderInformation, ID string, reachedFloor int) bool {
+func ordersBelow(elevState cost.AssignedOrderInformation, ID string, reachedFloor int) bool {
 	for floor := 0; floor < reachedFloor; floor++ {
 		if elevState.States[ID].CabRequests[floor] {
 			return true
@@ -413,17 +413,17 @@ func chooseDirection(elevState cost.AssignedOrderInformation, ID string, floor i
 	case "stop":
 		fallthrough
 	case "down":
-		if requestsBelow(elevState, ID, floor) {
+		if ordersBelow(elevState, ID, floor) {
 			return elevio.MD_Down
-		} else if requestsAbove(elevState, ID, floor) {
+		} else if ordersAbove(elevState, ID, floor) {
 			return elevio.MD_Up
 		} else {
 			return elevio.MD_Stop
 		}
 	case "up":
-		if requestsAbove(elevState, ID, floor) {
+		if ordersAbove(elevState, ID, floor) {
 			return elevio.MD_Up
-		} else if requestsBelow(elevState, ID, floor) {
+		} else if ordersBelow(elevState, ID, floor) {
 			return elevio.MD_Down
 		} else {
 			return elevio.MD_Stop
@@ -440,11 +440,11 @@ func shouldStop(elevState cost.AssignedOrderInformation, ID string, floor int) b
 	case "down":
 		return (elevState.AssignedOrders[ID][floor][elevio.BT_HallDown] ||
 			elevState.States[ID].CabRequests[floor] ||
-			!requestsBelow(elevState, ID, floor))
+			!ordersBelow(elevState, ID, floor))
 	case "up":
 		return (elevState.AssignedOrders[ID][floor][elevio.BT_HallUp] ||
 			elevState.States[ID].CabRequests[floor] ||
-			!requestsAbove(elevState, ID, floor))
+			!ordersAbove(elevState, ID, floor))
 	case "stop":
 		fallthrough
 	default:
@@ -457,7 +457,7 @@ func clearAtCurrentFloor(elevState cost.AssignedOrderInformation, ID string, flo
 	//For cabRequests
 	cleared := false
 	update := backup.UpdateMessage{
-		MessageType:    	4,
+		MessageType:    	0,
 		Floor:       		floor,
 		Button:      		2,
 		Behaviour:   		elevState.States[ID].Behaviour,
@@ -471,7 +471,7 @@ func clearAtCurrentFloor(elevState cost.AssignedOrderInformation, ID string, flo
 	}
 
 	//For hallRequests
-	update.MessageType = 0
+	update.MessageType = 1
 	switch elevState.States[ID].Direction {
 	case "up":
 		if elevState.HallRequests[elevState.States[ID].Floor][int(elevio.BT_HallUp)] {
@@ -479,7 +479,7 @@ func clearAtCurrentFloor(elevState cost.AssignedOrderInformation, ID string, flo
 			ch_network_update <- update
 			cleared = true
 		}
-		if !requestsAbove(elevState, ID, floor) &&
+		if !ordersAbove(elevState, ID, floor) &&
 			elevState.HallRequests[elevState.States[ID].Floor][int(elevio.BT_HallDown)] {
 			update.Button = int(elevio.BT_HallDown)
 			ch_network_update <- update
@@ -491,7 +491,7 @@ func clearAtCurrentFloor(elevState cost.AssignedOrderInformation, ID string, flo
 			ch_network_update <- update
 			cleared = true
 		}
-		if !requestsBelow(elevState, ID, floor) &&
+		if !ordersBelow(elevState, ID, floor) &&
 			elevState.HallRequests[elevState.States[ID].Floor][int(elevio.BT_HallUp)] {
 			update.Button = int(elevio.BT_HallUp)
 			ch_network_update <- update

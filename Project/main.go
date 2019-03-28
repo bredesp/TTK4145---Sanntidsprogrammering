@@ -3,7 +3,7 @@ package main
 /*This is the entry point for the elevator project in TTK4145 Real time programming.
 The project consists of five modules tied together in this main package. The modules communicate through go channels according to the design
 diagram found in the Design section of the project on github. https://github.com/TTK4145/project-merge-issues
-The modules are: Cost, Fsm, Status, Network and Driver. Their communication and
+The modules are: Cost, StateMachine, Status, Network and Driver. Their communication and
 further function description can be found in the README file.*/
 import (
 	"flag"
@@ -16,7 +16,7 @@ import (
 
 	"./Cost"
 	"./Elevio"
-	"./Fsm"
+	"./StateMachine"
 	"./Network"
 	"./Network/network/acknowledge"
 	"./Network/network/localip"
@@ -85,10 +85,10 @@ func main() {
 
 	//parameters on the form (output,output,...,input,input,...,other parameters)
 	go atExit()
-	go network.Network(ch_status_update, ch_status_refresh, ch_status_broadcast, ch_network_update, id)
-	go backup.Backup(ch_elevator_update, ch_status_broadcast, ch_status_refresh, ch_status_update, init, id)
-	go fsm.Fsm(ch_network_update, ch_fsm_info, init)
-	go cost.Cost(ch_fsm_info, ch_elevator_update)
+	go network.Network(ch_status_broadcast, ch_network_update, ch_status_update, ch_status_refresh, id)
+	go backup.Backup(ch_status_broadcast, ch_status_update, ch_elevator_update, ch_status_refresh, init, id)
+	go stateMachine.StateMachine(ch_network_update, ch_fsm_info, init)
+	go cost.Cost(ch_elevator_update, ch_fsm_info)
 
 	select {}
 }
@@ -113,9 +113,9 @@ func atExit() {
 func AssignGlobals(id string, port string) {
 	backup.FLOORS = FLOORS
 	backup.ELEVATORS = ELEVATORS
-	fsm.FLOORS = FLOORS
-	fsm.ID = id
-	fsm.PORT = port
+	stateMachine.FLOORS = FLOORS
+	stateMachine.ID = id
+	stateMachine.PORT = port
 	acknowledge.ID = id
 	acknowledge.PORT = port
 }

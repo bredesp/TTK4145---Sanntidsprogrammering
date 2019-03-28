@@ -14,7 +14,6 @@ import (
 
 var FLOORS int
 var ELEVATORS int
-//var Mtx sync.Mutex = sync.Mutex{}
 
 type AssignedOrderInformation struct {
 	AssignedOrders map[string][][]bool
@@ -22,7 +21,7 @@ type AssignedOrderInformation struct {
 	States         map[string]*backup.StateValues
 }
 
-func Cost(ch_fsm_info chan<- AssignedOrderInformation, ch_elevator_status <-chan backup.StatusStruct) {
+func Cost(ch_elevator_status <-chan backup.StatusStruct, ch_fsm_info chan<- AssignedOrderInformation) {
 	for {
 		select {
 		case state := <-ch_elevator_status:
