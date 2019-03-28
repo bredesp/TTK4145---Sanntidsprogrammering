@@ -45,11 +45,11 @@ func Network( ch_status_broadcast <-chan backup.StatusStruct, ch_network_update 
 			// and then forward the new state to the backup-module who then feeds
 			// this into the cost-function which then informs the state machine (...)
 		case update := <-ch_network_update:
-			if update.MessageType == 8 {
+			if update.MessageType == 9 {
 				elevatorAvaliable = false
 				ch_peer_TX_enable <- elevatorAvaliable
 				continue
-			} else if elevatorAvaliable == false && update.MessageType == 2 {
+			} else if elevatorAvaliable == false && update.MessageType == 4 {
 				ch_peer_TX_enable <- true
 			}
 			acknowledge.SendUpdate(update)

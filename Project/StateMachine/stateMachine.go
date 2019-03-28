@@ -102,7 +102,7 @@ func StateMachine(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-c
 						doorTimedOut.Reset(3 * time.Second)
 
 						// Behaviour message
-						updateMessage.MessageType = 4
+						updateMessage.MessageType = 2
 						updateMessage.Behaviour = "doorOpen"
 						updateMessage.Elevator = ID
 						ch_network_update <- updateMessage
@@ -198,7 +198,7 @@ func StateMachine(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-c
 			case elevio.MD_Stop:
 
 				// Behaviour message
-				updateMessage.MessageType = 3
+				updateMessage.MessageType = 2
 				updateMessage.Behaviour = "idle"
 				updateMessage.Elevator = ID
 				ch_network_update <- updateMessage
@@ -334,7 +334,7 @@ func shouldElevStop(elevState cost.AssignedOrderInformation, ID string, floor in
 
 // Check if the elevator is travelling in the right direction to clear the floor and then return true
 func clearAtFloor(elevState cost.AssignedOrderInformation, ID string, floor int, ch_network_update chan<- backup.UpdateMessage) bool {
-	// For cab tequests
+	// For cab requests
 	cleared := false
 	update := backup.UpdateMessage{
 		MessageType:    	0,

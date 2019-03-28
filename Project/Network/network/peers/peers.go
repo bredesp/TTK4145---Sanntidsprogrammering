@@ -15,7 +15,7 @@ type PeerUpdate struct {
 }
 
 const interval = 15 * time.Millisecond
-const timeout = 50 * time.Millisecond//first_download(150)->github(50)
+const timeout = 50 * time.Millisecond
 
 func Transmitter(port int, id string, ch_peer_TX_enable <-chan bool) {
 

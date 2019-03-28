@@ -19,7 +19,7 @@ import (
 
 // Global variable for number of elevators and floors
 const FLOORS = 4
-const ELEVATORS = 3
+const ELEVATORS = 1
 
 // Id and port number for elevator
 var id string

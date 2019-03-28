@@ -91,7 +91,7 @@ func Ack(ch_new_update chan<- backup.UpdateMessage, ch_new_status chan<- backup.
 			ackMessage := AcknowledgeMessage{
 				ID:      			ID,
 				SequenceNum:  newStatus.SequenceNum,
-				MessageType: 	1,
+				MessageType: 	2,
 			}
 			ch_TX_ack <- ackMessage
 			ch_new_status <- newStatus.Message
@@ -102,7 +102,7 @@ func Ack(ch_new_update chan<- backup.UpdateMessage, ch_new_status chan<- backup.
 			ackMessage := AcknowledgeMessage{
 				ID:      			ID,
 				SequenceNum:  newUpdate.SequenceNum,
-				MessageType: 	0,
+				MessageType: 	1,
 			}
 			if newUpdate.Message.Elevator != ID {
 				ch_new_update <- newUpdate.Message
@@ -119,7 +119,7 @@ func Ack(ch_new_update chan<- backup.UpdateMessage, ch_new_status chan<- backup.
 			// This is only to "assure" against packet loss.
 		case timeoutAck := <-ch_timeout_ack:
 			switch timeoutAck.MessageType {
-			case 0:
+			case 1:
 				_mtx.Lock()
 				_, exists := sentMessages.UpdateMessages[timeoutAck.SequenceNum]
 				if exists && (sentMessages.NumbTimesSent[timeoutAck.SequenceNum] < 10) {
@@ -131,14 +131,14 @@ func Ack(ch_new_update chan<- backup.UpdateMessage, ch_new_status chan<- backup.
 						AcknowledgeMsg: AcknowledgeMessage{
 							ID:      			timeoutAck.ID,
 							SequenceNum:  timeoutAck.SequenceNum,
-							MessageType: 	0,
+							MessageType: 	1,
 						},
 						AcknowledgeTimer: time.NewTimer(15*time.Millisecond),
 					}
 					go AcknowledgeTimeout(ch_timeout_ack, ackStruct)
 				}
 				_mtx.Unlock()
-			case 1:
+			case 2:
 				_mtx.Lock()
 				_, exists := sentMessages.StatusMessages[timeoutAck.SequenceNum]
 				if exists && (sentMessages.NumbTimesSent[timeoutAck.SequenceNum] < 10) {
@@ -150,7 +150,7 @@ func Ack(ch_new_update chan<- backup.UpdateMessage, ch_new_status chan<- backup.
 						AcknowledgeMsg: AcknowledgeMessage{
 							ID:      			timeoutAck.ID,
 							SequenceNum:  timeoutAck.SequenceNum,
-							MessageType: 	1,
+							MessageType: 	2,
 						},
 						AcknowledgeTimer: time.NewTimer(15*time.Millisecond),
 					}
@@ -174,9 +174,9 @@ func Ack(ch_new_update chan<- backup.UpdateMessage, ch_new_status chan<- backup.
 						delete(sentMessages.NotAckFromPeer, receivedAck.SequenceNum)
 						delete(sentMessages.NumbTimesSent, receivedAck.SequenceNum)
 						switch receivedAck.MessageType {
-						case 0:
-							delete(sentMessages.UpdateMessages, receivedAck.SequenceNum)
 						case 1:
+							delete(sentMessages.UpdateMessages, receivedAck.SequenceNum)
+						case 2:
 							delete(sentMessages.StatusMessages, receivedAck.SequenceNum)
 						}
 					}
@@ -222,7 +222,7 @@ func SendUpdate(newUpdate backup.UpdateMessage) {
 			AcknowledgeMsg: AcknowledgeMessage{
 				ID:      			ID,
 				SequenceNum:  seqNumb,
-				MessageType: 	0,
+				MessageType: 	1,
 			},
 			AcknowledgeTimer: time.NewTimer(15*time.Millisecond),
 		}
@@ -249,7 +249,7 @@ func SendStatus(newStatus backup.StatusStruct) {
 			AcknowledgeMsg: AcknowledgeMessage{
 				ID:      			ID,
 				SequenceNum:  seqNumb,
-				MessageType: 	1,
+				MessageType: 	2,
 			},
 			AcknowledgeTimer: time.NewTimer(15*time.Millisecond),
 		}
