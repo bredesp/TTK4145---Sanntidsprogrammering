@@ -93,6 +93,7 @@ func main() {
 	select {}
 }
 
+
 //Ensures a smooth shutdown when program is killed from terminal. Currently it restarts the program
 func atExit() {
 	sigchan := make(chan os.Signal, 10)

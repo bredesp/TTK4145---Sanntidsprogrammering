@@ -36,19 +36,14 @@ type UpdateMessage struct {
 	// 2 = arrivedAtfloor
 	// 3 = newDirection
 	// 4 = cabRequest
-	// 5 = deleteElev
-	// 8 = brokenMotor
+	// 5 = deleteElevator
+	// 8 = motorBroken
 	Elevator    	string //used in all other than 0
 	Floor       	int    //used in 0, 2, 4
 	Button      	int    //used in 0, 4
 	Behaviour   	string //used in 1
 	Direction   	string //used in 3
 	OrderCompleted 	bool   //used in 0, 4, 6 - true if the elevator has completed an order and wants to clear it
-}
-
-type StatusStruct struct {
-	HallRequests [][2]bool               `json:"hallRequests"`
-	States       map[string]*StateValues `json:"states"` //key kan be changed to int if more practical but remember to cast to string before JSON encoding!
 }
 
 type StateValues struct {
@@ -58,27 +53,32 @@ type StateValues struct {
 	CabRequests []bool `json:"cabRequests"`
 }
 
+type StatusStruct struct {
+	HallRequests [][2]bool               `json:"hallRequests"`
+	States       map[string]*StateValues `json:"states"` //key kan be changed to int if more practical but remember to cast to string before JSON encoding!
+}
+
 func Backup(ch_elevator_status chan<- StatusStruct, ch_status_broadcast chan<- StatusStruct, ch_status_refresh <-chan StatusStruct, ch_status_update <-chan UpdateMessage, init bool, id string) {
 
 	file, err := os.OpenFile("backup.txt", os.O_RDWR|os.O_CREATE, 0671)
-	errorCheck(err)
+	ifError(err)
 
-	status := new(StatusStruct) //main status struct, continually updated
+	systemInfo := new(StatusStruct) //main StatusStruct, continually updated
 	Mtx.Lock()
 	if init { //clean initialization
 		file, err = os.Create("backup.txt")
-		errorCheck(err)
+		ifError(err)
 
-		status.HallRequests = make([][2]bool, FLOORS)
-		status.States = make(map[string]*StateValues)
-		initElevator(id, status, "idle", 0, "stop", make([]bool, FLOORS))
+		systemInfo.HallRequests = make([][2]bool, FLOORS)
+		systemInfo.States = make(map[string]*StateValues)
+		initElevator(id, systemInfo, "idle", 0, "stop", make([]bool, FLOORS))
 		file.Seek(0, 0)
-		res := json.NewEncoder(file).Encode(status)
-		errorCheck(res)
+		res := json.NewEncoder(file).Encode(systemInfo)
+		ifError(res)
 
-	} else { // recover status from file
-		res := json.NewDecoder(file).Decode(status)
-		errorCheck(res)
+	} else { // recover systemInfo from file
+		res := json.NewDecoder(file).Decode(systemInfo)
+		ifError(res)
 	}
 	Mtx.Unlock()
 	for {
@@ -86,120 +86,114 @@ func Backup(ch_elevator_status chan<- StatusStruct, ch_status_broadcast chan<- S
 		case message := <-ch_status_update:
 			Mtx.Lock()
 			if message.Elevator != "" {
-				_, elevStatus := status.States[message.Elevator]
+				_, elevStatus := systemInfo.States[message.Elevator]
 				deleteElev := 5
-				if !elevStatus && message.MessageType != deleteElev { //Elevator is not in status struct, initialized with best guess
-					initElevator(message.Elevator, status, message.Behaviour, message.Floor, message.Direction, make([]bool, FLOORS))
+				if !elevStatus && message.MessageType != deleteElev { //Elevator is not in systemInfo struct, initialized with best guess
+					initElevator(message.Elevator, systemInfo, message.Behaviour, message.Floor, message.Direction, make([]bool, FLOORS))
 				}
 			}
-
-			// update states (NEW function)
-            updateStates(status, message, id)
-
+      updateStates(systemInfo, message, id)
 			Mtx.Unlock()
 			file, err = os.Create("backup.txt")
-			errorCheck(err)
-			e := json.NewEncoder(file).Encode(status)
+			ifError(err)
+			e := json.NewEncoder(file).Encode(systemInfo)
+			ifError(e)
 
-			errorCheck(e)
-
-
-		// WHAT THE FUCK? NOT CHANGED
 		case inputState := <-ch_status_refresh: //only add orders and update states
 			//refresh hall requests
 			Mtx.Lock()
 			for floor := 0; floor < FLOORS; floor++ {
 				for button := 0; button < 2; button++ {
 					if inputState.HallRequests[floor][button] {
-						status.HallRequests[floor][button] = true
+						systemInfo.HallRequests[floor][button] = true
 					}
 				}
 			}
-
-			for elev, estate := range status.States {
-				if _, ok := status.States[elev]; !ok {
-					initElevator(elev, status, estate.Behaviour, estate.Floor, estate.Direction, estate.CabRequests)
+			for elev, estate := range systemInfo.States {
+				_, fail := systemInfo.States[elev]
+				if !fail {
+					initElevator(elev, systemInfo, estate.Behaviour, estate.Floor, estate.Direction, estate.CabRequests)
 				} else {
-					status.States[elev].Behaviour = estate.Behaviour
-					status.States[elev].Floor = estate.Floor
-					status.States[elev].Direction = estate.Direction
+					systemInfo.States[elev].Behaviour = estate.Behaviour
+					systemInfo.States[elev].Floor = estate.Floor
+					systemInfo.States[elev].Direction = estate.Direction
 					for floor := 0; floor < FLOORS; floor++ {
 						if estate.CabRequests[floor] {
-							status.States[elev].CabRequests[floor] = true
+							systemInfo.States[elev].CabRequests[floor] = true
 						}
 					}
 				}
 			}
 			Mtx.Unlock()
 
-		case ch_elevator_status <- *status:
-		case ch_status_broadcast <- *status:
+		case ch_elevator_status <- *systemInfo:
+		case ch_status_broadcast <- *systemInfo:
 		}
 	}
 }
 
 
-// Used to update the states
-func updateStates(status *StatusStruct, message UpdateMessage, id string){
+// Used to update the states and MessageType
+func updateStates(systemInfo *StatusStruct, message UpdateMessage, id string){
 	switch message.MessageType{
 		case 0: //hall request
 			if message.OrderCompleted {
-			status.HallRequests[message.Floor][message.Button] = false
+			systemInfo.HallRequests[message.Floor][message.Button] = false
 			}else{
-			status.HallRequests[message.Floor][message.Button] = true
+			systemInfo.HallRequests[message.Floor][message.Button] = true
 			}
 
 		case 1: //new Behaviour
-			status.States[message.Elevator].Behaviour = message.Behaviour
+			systemInfo.States[message.Elevator].Behaviour = message.Behaviour
 
 		case 2: //arrived at floor
-			status.States[message.Elevator].Floor = message.Floor
+			systemInfo.States[message.Elevator].Floor = message.Floor
 
 		case 3: //new direction
-			status.States[message.Elevator].Direction = message.Direction
+			systemInfo.States[message.Elevator].Direction = message.Direction
 
 		case 4: //cab request
 			if message.OrderCompleted {
-				status.States[message.Elevator].CabRequests[message.Floor] = false
+				systemInfo.States[message.Elevator].CabRequests[message.Floor] = false
 			} else {
-				status.States[message.Elevator].CabRequests[message.Floor] = true
+				systemInfo.States[message.Elevator].CabRequests[message.Floor] = true
 			}
 		case 5: //lost Elevator
 			if message.Elevator != id { //dont delete ourselves
-				delete(status.States, message.Elevator)
+				delete(systemInfo.States, message.Elevator)
 			}
 		}
 }
 
-//Used to initialize a new elevator in @param status with the gven paramters
-func initElevator(elevName string, status *StatusStruct, Behaviour string, Floor int, Direction string, cabRequests []bool) {
+//Used to initialize a new elevator in @param systemInfo with the gven paramters
+func initElevator(elevName string, systemInfo *StatusStruct, Behaviour string, Floor int, Direction string, cabRequests []bool) {
 
-	// Set elevator status
-	status.States[elevName] = new(StateValues)
-	if status.States[elevName].Behaviour == "" {
-		status.States[elevName].Behaviour = "idle"
+	// Set elevator systemInfo
+	systemInfo.States[elevName] = new(StateValues)
+	if systemInfo.States[elevName].Behaviour == "" {
+		systemInfo.States[elevName].Behaviour = "idle"
 	} else {
-		status.States[elevName].Behaviour = Behaviour
+		systemInfo.States[elevName].Behaviour = Behaviour
 	}
 
 	// Set elevator floor
-	status.States[elevName].Floor = Floor
-	if status.States[elevName].Direction == "" {
-		status.States[elevName].Direction = "up"
+	systemInfo.States[elevName].Floor = Floor
+	if systemInfo.States[elevName].Direction == "" {
+		systemInfo.States[elevName].Direction = "up"
 	} else {
-		status.States[elevName].Direction = Behaviour
+		systemInfo.States[elevName].Direction = Behaviour
 	}
 
 	// Set number of floors
 	if len(cabRequests) != FLOORS {
-		status.States[elevName].CabRequests = make([]bool, FLOORS)
+		systemInfo.States[elevName].CabRequests = make([]bool, FLOORS)
 	} else {
-		status.States[elevName].CabRequests = cabRequests
+		systemInfo.States[elevName].CabRequests = cabRequests
 	}
 	return
 }
 
-func errorCheck(err error) {
+func ifError(err error) {
 	if err != nil {
 		panic(err)
 	}

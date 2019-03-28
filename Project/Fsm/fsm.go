@@ -20,8 +20,8 @@ import (
 var FLOORS int
 var ID string
 var PORT string
-var updateMessage backup.UpdateMessage
-var elevState cost.AssignedOrderInformation
+//var updateMessage backup.UpdateMessage
+//var elevState cost.AssignedOrderInformation
 
 //TODO: test motor failure. worries: behaviour=stop is not enough and elevator must disconnect from network
 //TODO: clean up the motor failure part, not sure what needs to stay or not :)
@@ -40,7 +40,8 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 	}()
 
 	//----initializing variables and subroutines ----//
-	//var elevState cost.AssignedOrderInformation
+	var updateMessage backup.UpdateMessage
+	var elevState cost.AssignedOrderInformation
 
 	updateMessage.Elevator = ID
 	elevState = <-ch_fsm_info //this variable contains all information the FSM needs to operate and is constantly refreshed
@@ -58,8 +59,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 	//go elevio.PollFloorSensorCont(ch_in_floor)
 
 	//----initializing elevator----//
-	initElevatorState(init, ch_new_floor)
-	/*
+	//initElevatorState(init, ch_new_floor)
 	if init { //clean init
 		elevio.SetMotorDirection(elevio.MD_Down)
 		elevio.SetFloorIndicator(0)
@@ -93,7 +93,6 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 			}
 		}
 	}
-	*/
 
 	//Main loop in Fsm
 	for {
@@ -287,12 +286,19 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 			motorTimedOut.Reset(4 * time.Second)
 			motorTimedOut.Stop()
 			turnOffAllLights()
-
+			fmt.Println("I am here! In case: moto broke")
 		F:
 			for {
+				/*
+				if init == false{
+					fmt.Println("I am here! Init = false")
+					break F
+				}
+				*/
 				select {
 				case floor := <-ch_new_floor:
 					if floor != -1 {
+						fmt.Println("I am here! Inside the loop")
 						break F
 					}
 				}
@@ -301,6 +307,7 @@ func Fsm(ch_network_update chan<- backup.UpdateMessage, ch_fsm_info <-chan cost.
 	}
 }
 
+/*
 //Erlend: lager init function if init==true
 func initElevatorState(init bool, ch_new_floor <-chan int){
 	initTimedOut := time.NewTimer(3 * time.Second)
@@ -339,9 +346,11 @@ func initElevatorState(init bool, ch_new_floor <-chan int){
 		}
 	}
 }
+*/
 
+/*
 // SIMON: Ny funksjon. Tatt den i bruk over
-func updateRequest(msgType int, buttonType int, buttonFloor int, behaviour_string string/*, ch_network_update chan<- backup.UpdateMessage*/) {
+func updateRequest(msgType int, buttonType int, buttonFloor int, behaviour_string string, ch_network_update chan<- backup.UpdateMessage) {
 	updateMessage.MessageType = msgType
 	updateMessage.Button = buttonType
 	updateMessage.OrderCompleted = false //Nytt knappetrykk
@@ -366,6 +375,7 @@ func updateDirection(direction_string string, ch_network_update chan<- backup.Up
 	updateMessage.Elevator = ID
 	ch_network_update <- updateMessage
 }
+*/
 
 //Checks for any orders above current floor
 func requestsAbove(elevState cost.AssignedOrderInformation, ID string, reachedFloor int) bool {
