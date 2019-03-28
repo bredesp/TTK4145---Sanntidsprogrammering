@@ -10,15 +10,13 @@ var FLOORS int
 var ELEVATORS int
 var Mtx sync.Mutex = sync.Mutex{}
 
+/*
+The different message types are 0, 1, 2, 3, 4, 5 and 9.
+Explained in function updateStates. (9 = motorStop)
+*/
+
 type UpdateMessage struct {
-	MessageType int
-	// 0 = hall request
-	// 1 = new behaviour
-	// 2 = arrived at floor
-	// 3 = new direction
-	// 4 = cab request
-	// 5 = delete elevator
-	// 9 = motorBroken
+	MessageType 	int
 	Elevator    	string
 	Floor       	int
 	Button      	int
@@ -36,18 +34,17 @@ type StateValues struct {
 
 type StatusStruct struct {
 	HallRequests [][2]bool               `json:"hallRequests"`
-	States       map[string]*StateValues `json:"states"` //key kan be changed to int if more practical but remember to cast to string before JSON encoding!
+	States       map[string]*StateValues `json:"states"`
 }
-
 
 func Backup(ch_status_broadcast chan<- StatusStruct, ch_status_update <-chan UpdateMessage, ch_elevator_status chan<- StatusStruct, ch_status_refresh <-chan StatusStruct, init bool, id string) {
 
 	file, err := os.OpenFile("backup.txt", os.O_RDWR|os.O_CREATE, 0671)
 	ifError(err)
 
-	systemInfo := new(StatusStruct) //main StatusStruct, continually updated
+	systemInfo := new(StatusStruct) //elevators StatusStruct
 	Mtx.Lock()
-	if init { //clean initialization
+	if init { // Initialization a new backup
 		file, err = os.Create("backup.txt")
 		ifError(err)
 
@@ -58,7 +55,7 @@ func Backup(ch_status_broadcast chan<- StatusStruct, ch_status_update <-chan Upd
 		res := json.NewEncoder(file).Encode(systemInfo)
 		ifError(res)
 
-	} else { // recover systemInfo from file
+	} else { // Recovers systemInfo from backup.txt
 		res := json.NewDecoder(file).Decode(systemInfo)
 		ifError(res)
 	}
@@ -70,7 +67,7 @@ func Backup(ch_status_broadcast chan<- StatusStruct, ch_status_update <-chan Upd
 			if message.Elevator != "" {
 				_, elevStatus := systemInfo.States[message.Elevator]
 				deleteElev := 5
-				if !elevStatus && message.MessageType != deleteElev { //Elevator is not in systemInfo struct, initialized with best guess
+				if !elevStatus && message.MessageType != deleteElev { // If the elevator is not in systemInfo
 					initElevator(message.Elevator, systemInfo, message.Behaviour, message.Floor, message.Direction, make([]bool, FLOORS))
 				}
 			}
@@ -81,8 +78,7 @@ func Backup(ch_status_broadcast chan<- StatusStruct, ch_status_update <-chan Upd
 			e := json.NewEncoder(file).Encode(systemInfo)
 			ifError(e)
 
-		case inputState := <-ch_status_refresh: //only add orders and update states
-			//refresh hall requests
+		case inputState := <-ch_status_refresh: // Adds orders and updates HallRequests
 			Mtx.Lock()
 			for floor := 0; floor < FLOORS; floor++ {
 				for button := 0; button < 2; button++ {
@@ -114,43 +110,42 @@ func Backup(ch_status_broadcast chan<- StatusStruct, ch_status_update <-chan Upd
 	}
 }
 
-
 // Used to update the states and MessageType
 func updateStates(systemInfo *StatusStruct, message UpdateMessage, id string){
 	switch message.MessageType{
-		case 0: //cab request
+		case 0: // Cab request
 			if message.OrderCompleted {
 				systemInfo.States[message.Elevator].CabRequests[message.Floor] = false
 			} else {
 				systemInfo.States[message.Elevator].CabRequests[message.Floor] = true
 			}
-		case 1: //hall request
+		case 1: // Hall request
 			if message.OrderCompleted {
 			systemInfo.HallRequests[message.Floor][message.Button] = false
 			}else{
 			systemInfo.HallRequests[message.Floor][message.Button] = true
 			}
 
-		case 2: //new Behaviour
+		case 2: // New behaviour
 			systemInfo.States[message.Elevator].Behaviour = message.Behaviour
 
-		case 3: //new direction
+		case 3: // New direction
 			systemInfo.States[message.Elevator].Direction = message.Direction
 
-		case 4: //arrived at floor
+		case 4: // Arrived at floor
 			systemInfo.States[message.Elevator].Floor = message.Floor
 
-		case 5: //lost Elevator
-			if message.Elevator != id { //dont delete ourselves
+		case 5: // Lost elevator
+			if message.Elevator != id { //Dont delete this elevator
 				delete(systemInfo.States, message.Elevator)
 			}
 		}
 }
 
-//Used to initialize a new elevator in @param systemInfo with the gven paramters
+// Initialize a new elevator
 func initElevator(elevName string, systemInfo *StatusStruct, Behaviour string, Floor int, Direction string, cabRequests []bool) {
 
-	// Set elevator systemInfo
+	// Set systemInfo
 	systemInfo.States[elevName] = new(StateValues)
 	if systemInfo.States[elevName].Behaviour == "" {
 		systemInfo.States[elevName].Behaviour = "idle"
@@ -175,6 +170,7 @@ func initElevator(elevName string, systemInfo *StatusStruct, Behaviour string, F
 	return
 }
 
+// Check for errors
 func ifError(err error) {
 	if err != nil {
 		panic(err)
